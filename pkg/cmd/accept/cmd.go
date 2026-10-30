@@ -51,5 +51,9 @@ func NewCmd(clusteradmFlags *genericclioptionsclusteradm.ClusteradmFlags, stream
 	cmd.Flags().BoolVar(&o.Wait, "wait", false, "If set, wait for the managedcluster and CSR in foreground.")
 	cmd.Flags().BoolVar(&o.SkipApproveCheck, "skip-approve-check", false, "If set, then skip check and approve csr directly.")
 	cmd.Flags().StringSliceVar(&o.Requesters, "requesters", o.Requesters, "Common Names of agents to be approved.")
+	cmd.Flags().StringVar(&o.IdentityFile, "identity-file", "",
+		"Identity file from clusteradm join, for a cluster using SPIFFE identities.")
+	cmd.Flags().StringSliceVar(&o.IdentityThumbprints, "identity-thumbprints", nil,
+		"Issuer key thumbprints confirmed with the managed cluster admin over a second channel.")
 	return cmd
 }

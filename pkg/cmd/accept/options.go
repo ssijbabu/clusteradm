@@ -21,6 +21,13 @@ type Options struct {
 
 	Requesters []string
 
+	// IdentityFile is the identity file written by clusteradm join for a
+	// cluster using SPIFFE identities.
+	IdentityFile string
+	// IdentityThumbprints are the issuer key thumbprints confirmed with the
+	// managed cluster admin over a second channel.
+	IdentityThumbprints []string
+
 	Streams genericiooptions.IOStreams
 }
 

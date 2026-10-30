@@ -110,5 +110,6 @@ func NewCmd(clusteradmFlags *genericclioptionsclusteradm.ClusteradmFlags, stream
 	cmd.Flags().StringVar(&o.grpcEndpointType, "grpc-endpoint-type", "hostname", "The gRPC server endpoint type. The supported types are hostname and loadBalancer. The default type is hostname.")
 	cmd.Flags().StringSliceVar(&o.autoApprovedGRPCIdentities, "auto-approved-grpc-identities", []string{},
 		"List of users or identities that are accepted and whatever matches can be auto accepted to join hub for grpc clusters")
+	o.spiffe.addFlags(cmd.Flags())
 	return cmd
 }

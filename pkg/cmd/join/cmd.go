@@ -95,6 +95,7 @@ func NewCmd(clusteradmFlags *genericclioptionsclusteradm.ClusteradmFlags, stream
 	cmd.Flags().StringVar(&o.klusterletValuesFile, "klusterlet-values-file", "", "The path to a YAML file containing klusterlet Helm chart values. The values from the file override both the default klusterlet chart values and the values from other flags.")
 	cmd.Flags().StringVar(&o.grpcServer, "grpc-server", "", "The gRPC server address of the hub")
 	cmd.Flags().StringVar(&o.grpcCAFile, "grpc-ca-file", "", "Path to gRPC server CA PEM; required if --grpc-server is set")
+	o.spiffe.addFlags(cmd.Flags())
 	cmd.Flags().StringVar(&o.addonKubeClientRegistrationAuth, "addon-kubeclient-registration-auth", "csr", "The type of authentication to use for kubeClient type addon registration. Supported types: csr, token. Default is csr.")
 	cmd.Flags().Int64Var(&o.addonTokenExpirationSeconds, "addon-token-expiration-seconds", 0, "Token expiration seconds for addon registration when using token auth type. If not specified or 0, the system default will be used. Only applies when --addon-kubeclient-registration-auth=token.")
 	return cmd

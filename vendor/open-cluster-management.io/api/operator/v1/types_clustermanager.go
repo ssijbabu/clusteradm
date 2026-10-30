@@ -345,6 +345,129 @@ type GRPCRegistrationConfig struct {
 	// AutoApprovedIdentities represent a list of approved users
 	// +optional
 	AutoApprovedIdentities []string `json:"autoApprovedIdentities,omitempty"`
+
+	// spiffe switches the gRPC driver to SPIFFE identities: agents authenticate
+	// with their own projected ServiceAccount tokens and receive short-lived
+	// SPIFFE certificates signed by a hub CA held in an external KMS. No CA key,
+	// serving key or bootstrap token is stored in a Secret on the hub.
+	// +optional
+	SPIFFE *SPIFFEHubConfig `json:"spiffe,omitempty"`
+}
+
+// SPIFFEHubConfig configures SPIFFE identities on the hub.
+type SPIFFEHubConfig struct {
+	// trustDomain is this hub's SPIFFE trust domain. It must be unique to the hub.
+	// +required
+	// +kubebuilder:validation:Pattern=`^[a-z0-9._-]+$`
+	// +kubebuilder:validation:MaxLength=255
+	TrustDomain string `json:"trustDomain"`
+
+	// tokenAudience is the audience agents request on their projected tokens.
+	// It must be unique to this hub so a token sent to one hub cannot be
+	// replayed at another.
+	// +required
+	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:MaxLength=255
+	TokenAudience string `json:"tokenAudience"`
+
+	// signer selects the external KMS that holds the hub CA key.
+	// +required
+	Signer SPIFFESigner `json:"signer"`
+
+	// dnsNames are added to the hub server SVID. Agents identify the hub by its
+	// SPIFFE ID, so load balancers in front of the gRPC server must pass TLS through.
+	// +optional
+	DNSNames []string `json:"dnsNames,omitempty"`
+
+	// serviceAccountAnnotations are copied to the gRPC server's ServiceAccount,
+	// for example to link it to the KMS provider's workload identity.
+	// +optional
+	ServiceAccountAnnotations map[string]string `json:"serviceAccountAnnotations,omitempty"`
+
+	// podLabels are copied to the gRPC server's pods.
+	// +optional
+	PodLabels map[string]string `json:"podLabels,omitempty"`
+
+	// agentSVIDLifetime is the lifetime of agent SVIDs. Defaults to 1h.
+	// +optional
+	AgentSVIDLifetime *metav1.Duration `json:"agentSVIDLifetime,omitempty"`
+}
+
+// SPIFFESignerType names a KMS the hub CA key can live in.
+// +kubebuilder:validation:Enum=AzureKeyVault;OpenBao
+type SPIFFESignerType string
+
+const (
+	SPIFFESignerTypeAzureKeyVault SPIFFESignerType = "AzureKeyVault"
+	SPIFFESignerTypeOpenBao       SPIFFESignerType = "OpenBao"
+)
+
+// SPIFFESigner selects and configures the KMS that holds the hub CA key.
+type SPIFFESigner struct {
+	// type of the KMS.
+	// +required
+	Type SPIFFESignerType `json:"type"`
+
+	// azureKeyVault is required when type is AzureKeyVault.
+	// +optional
+	AzureKeyVault *AzureKeyVaultSigner `json:"azureKeyVault,omitempty"`
+
+	// openBao is required when type is OpenBao.
+	// +optional
+	OpenBao *OpenBaoSigner `json:"openBao,omitempty"`
+}
+
+// AzureKeyVaultSigner points at the hub CA certificate in Azure Key Vault. The
+// gRPC server authenticates with Microsoft Entra Workload ID.
+type AzureKeyVaultSigner struct {
+	// vaultURL is the vault's URL, for example https://my-vault.vault.azure.net.
+	// +required
+	// +kubebuilder:validation:Pattern=`^https://`
+	VaultURL string `json:"vaultURL"`
+
+	// certificateName is the Key Vault certificate holding the hub CA. Its key
+	// must be a non-exportable EC-HSM key.
+	// +required
+	CertificateName string `json:"certificateName"`
+}
+
+// OpenBaoSigner points at the hub CA transit key and certificate in OpenBao.
+// The gRPC server authenticates with the Kubernetes auth method.
+type OpenBaoSigner struct {
+	// address of the OpenBao server.
+	// +required
+	// +kubebuilder:validation:Pattern=`^https://`
+	Address string `json:"address"`
+
+	// namespace is the OpenBao namespace, if namespaces are used.
+	// +optional
+	Namespace string `json:"namespace,omitempty"`
+
+	// transitMount is where the transit engine is mounted. Defaults to transit.
+	// +optional
+	TransitMount string `json:"transitMount,omitempty"`
+
+	// keyName is the non-exportable transit key holding the hub CA key.
+	// +required
+	KeyName string `json:"keyName"`
+
+	// certificatePath is the KV v2 API path of the secret whose certificate
+	// field holds the hub CA certificate, for example secret/data/ocm/spiffe-ca.
+	// +required
+	CertificatePath string `json:"certificatePath"`
+
+	// authMount is where the Kubernetes auth method is mounted. Defaults to kubernetes.
+	// +optional
+	AuthMount string `json:"authMount,omitempty"`
+
+	// authRole is the Kubernetes auth role bound to the gRPC server's ServiceAccount.
+	// +required
+	AuthRole string `json:"authRole"`
+
+	// tokenAudience is the audience of the token the gRPC server presents to
+	// OpenBao. Defaults to openbao.
+	// +optional
+	TokenAudience string `json:"tokenAudience,omitempty"`
 }
 
 type WorkConfiguration struct {

@@ -155,6 +155,9 @@ func (o *Options) complete(cmd *cobra.Command, _ []string) (err error) {
 }
 
 func (o *Options) validate(ctx context.Context) error {
+	if err := o.spiffe.validate(o.registrationDrivers); err != nil {
+		return err
+	}
 	if o.force {
 		return nil
 	}
@@ -242,7 +245,12 @@ func (o *Options) run(ctx context.Context) error {
 			fmt.Fprintln(o.Streams.Out, "skip creating namespace")
 		}
 
-		if !o.useBootstrapToken {
+		// SPIFFE agents authenticate with their own projected tokens: no
+		// bootstrap token or bootstrap ServiceAccount is created.
+		if o.spiffe.enabled() {
+			o.clusterManagerChartConfig.CreateBootstrapSA = false
+			o.clusterManagerChartConfig.CreateBootstrapToken = false
+		} else if !o.useBootstrapToken {
 			o.clusterManagerChartConfig.CreateBootstrapSA = true
 		} else {
 			o.clusterManagerChartConfig.CreateBootstrapToken = true
@@ -256,7 +264,7 @@ func (o *Options) run(ctx context.Context) error {
 
 		// A values file can set both createBootstrapSA and createBootstrapToken to false, which matches the chart
 		// but breaks join token retrieval below (it follows --use-bootstrap-token, not the chart defaults).
-		if !o.ClusteradmFlags.DryRun && !o.clusterManagerChartConfig.CreateBootstrapSA && !o.clusterManagerChartConfig.CreateBootstrapToken {
+		if !o.spiffe.enabled() && !o.ClusteradmFlags.DryRun && !o.clusterManagerChartConfig.CreateBootstrapSA && !o.clusterManagerChartConfig.CreateBootstrapToken {
 			klog.V(1).InfoS("cluster-manager values disabled both bootstrap resources; reapplying bootstrap settings from --use-bootstrap-token for join token retrieval",
 				"useBootstrapToken", o.useBootstrapToken)
 			if !o.useBootstrapToken {
@@ -314,6 +322,15 @@ func (o *Options) run(ctx context.Context) error {
 				int64(o.ClusteradmFlags.Timeout)); err != nil {
 				return err
 			}
+		}
+
+		if o.spiffe.enabled() {
+			if len(o.outputFile) > 0 {
+				if err := os.WriteFile(o.outputFile, r.RawAppliedResources(), 0o755); err != nil {
+					return err
+				}
+			}
+			return o.printSPIFFEJoinCommand()
 		}
 
 		// if service-account wait for the sa secret
@@ -485,6 +502,12 @@ func getRegistrationDrivers(o *Options) ([]operatorv1.RegistrationDriverHub, err
 				registrationDriver.GRPC = &operatorv1.GRPCRegistrationConfig{
 					AutoApprovedIdentities: o.autoApprovedGRPCIdentities,
 				}
+			}
+			if o.spiffe.enabled() {
+				if registrationDriver.GRPC == nil {
+					registrationDriver.GRPC = &operatorv1.GRPCRegistrationConfig{}
+				}
+				registrationDriver.GRPC.SPIFFE = o.spiffe.hubConfig()
 			}
 		default:
 			return registrationDrivers, fmt.Errorf("unknown registration-drivers type: %s", driver)

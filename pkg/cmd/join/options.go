@@ -116,6 +116,9 @@ type Options struct {
 	// The values from the file override the default klusterlet chart values.
 	klusterletValuesFile string
 
+	// spiffe configures joining a hub that uses SPIFFE identities.
+	spiffe spiffeOptions
+
 	// The type of authentication to use for kubeClient type addon registration
 	addonKubeClientRegistrationAuth string
 

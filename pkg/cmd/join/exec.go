@@ -71,10 +71,10 @@ func (o *Options) complete(cmd *cobra.Command, args []string) (err error) {
 		return fmt.Errorf("no flags have been set: hub-apiserver, hub-token and cluster-name is required")
 	}
 
-	if o.token == "" {
+	if o.token == "" && !o.spiffeEnabled() {
 		return fmt.Errorf("token is missing")
 	}
-	if o.hubAPIServer == "" {
+	if o.hubAPIServer == "" && !o.spiffeEnabled() {
 		return fmt.Errorf("hub-server is missing")
 	}
 	if o.clusterName == "" {
@@ -190,6 +190,19 @@ func (o *Options) complete(cmd *cobra.Command, args []string) (err error) {
 		o.klusterletChartConfig.Klusterlet.Mode = operatorv1.InstallMode(o.mode)
 	}
 
+	// SPIFFE mode uses no hub token and no hub kube-apiserver access.
+	if o.spiffeEnabled() {
+		if err := o.completeSPIFFE(); err != nil {
+			return err
+		}
+		if o.klusterletValuesFile != "" {
+			if err := klusterlet.MergeKlusterletValues(o.klusterletValuesFile, o.klusterletChartConfig); err != nil {
+				return fmt.Errorf("failed to merge klusterlet values file: %v", err)
+			}
+		}
+		return nil
+	}
+
 	// if --ca-file is set, read ca data
 	if o.caFile != "" {
 		cabytes, err := os.ReadFile(o.caFile)
@@ -273,6 +286,9 @@ func (o *Options) complete(cmd *cobra.Command, args []string) (err error) {
 }
 
 func (o *Options) validate(ctx context.Context) error {
+	if o.spiffeEnabled() {
+		return o.validateSPIFFE(ctx)
+	}
 	// preflight check
 	if err := preflightinterface.RunChecks(
 		ctx,
@@ -398,6 +414,12 @@ func (o *Options) run(ctx context.Context) error {
 
 	r := reader.NewResourceReader(f, o.ClusteradmFlags.DryRun, o.Streams)
 
+	if o.spiffeEnabled() {
+		return o.runSPIFFE(ctx, r, func() error {
+			return o.applyKlusterlet(ctx, r, operatorClient, apiExtensionsClient)
+		})
+	}
+
 	if err = o.applyKlusterlet(ctx, r, operatorClient, apiExtensionsClient); err != nil {
 		return err
 	}
@@ -481,9 +503,12 @@ func (o *Options) applyKlusterlet(ctx context.Context, r *reader.ResourceReader,
 			return err
 		}
 
-		err = o.waitUntilManagedClusterIsCreated(ctx, int64(o.ClusteradmFlags.Timeout), o.klusterletChartConfig.Klusterlet.ClusterName)
-		if err != nil {
-			return err
+		// With SPIFFE identities the hub admin creates the ManagedCluster at accept time.
+		if !o.spiffeEnabled() {
+			err = o.waitUntilManagedClusterIsCreated(ctx, int64(o.ClusteradmFlags.Timeout), o.klusterletChartConfig.Klusterlet.ClusterName)
+			if err != nil {
+				return err
+			}
 		}
 	}
 	return nil

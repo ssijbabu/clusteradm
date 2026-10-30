@@ -10,7 +10,7 @@ require (
 	github.com/gofrs/flock v0.13.1
 	github.com/google/uuid v1.6.0
 	github.com/jonboulle/clockwork v0.5.0
-	github.com/onsi/ginkgo/v2 v2.33.0
+	github.com/onsi/ginkgo/v2 v2.33.1
 	github.com/onsi/gomega v1.44.0
 	github.com/openshift/library-go v0.0.0-20260911204104-f7fdf34b126f
 	github.com/pkg/errors v0.9.1
@@ -36,6 +36,7 @@ require (
 	sigs.k8s.io/apiserver-network-proxy/konnectivity-client v0.37.0
 	sigs.k8s.io/controller-runtime v0.25.2
 	sigs.k8s.io/kustomize/kyaml v0.21.2
+	sigs.k8s.io/yaml v1.6.0
 )
 
 require (
@@ -117,9 +118,9 @@ require (
 	github.com/openshift/api v0.0.0-20260914154154-9edb1b2245e2 // indirect
 	github.com/peterbourgon/diskv v2.0.1+incompatible // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
-	github.com/prometheus/client_golang v1.24.1 // indirect
+	github.com/prometheus/client_golang v1.25.0 // indirect
 	github.com/prometheus/client_model v0.6.3 // indirect
-	github.com/prometheus/common v0.71.0 // indirect
+	github.com/prometheus/common v0.72.0 // indirect
 	github.com/prometheus/procfs v0.22.0 // indirect
 	github.com/rubenv/sql-migrate v1.8.1 // indirect
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect
@@ -163,5 +164,11 @@ require (
 	sigs.k8s.io/kustomize/api v0.21.1 // indirect
 	sigs.k8s.io/randfill v1.0.0 // indirect
 	sigs.k8s.io/structured-merge-diff/v6 v6.4.2 // indirect
-	sigs.k8s.io/yaml v1.6.0 // indirect
 )
+
+// Until the SPIFFE changes are released: api, sdk-go and ocm from the ssijbabu forks.
+replace open-cluster-management.io/api => github.com/ssijbabu/api v1.3.1-0.20261030064644-a2334d45be93
+
+replace open-cluster-management.io/sdk-go => github.com/ssijbabu/sdk-go v1.4.1-0.20261030064657-87a7e41cfced
+
+replace open-cluster-management.io/ocm => github.com/ssijbabu/ocm v1.3.1-0.20261030064847-332f0e729a1f

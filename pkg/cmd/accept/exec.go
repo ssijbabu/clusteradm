@@ -65,6 +65,9 @@ func (o *Options) Run(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+	if o.IdentityFile != "" {
+		return o.acceptSPIFFE(ctx, clusterClient)
+	}
 	return o.runWithClient(ctx, kubeClient, clusterClient)
 }
 
