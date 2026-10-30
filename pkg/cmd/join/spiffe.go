@@ -106,9 +106,12 @@ func (o *Options) runSPIFFE(ctx context.Context, r *reader.ResourceReader, apply
 		return err
 	}
 	if !o.ClusteradmFlags.DryRun {
-		if err := trustbundle.NewPublisher(kubeClient.CertificatesV1beta1()).Publish(ctx, o.spiffe.caBundle); err != nil {
-			return fmt.Errorf("failed to store the hub trust bundle (the cluster needs Kubernetes 1.35 or later with "+
-				"the ClusterTrustBundle API): %w", err)
+		dynamicClient, err := o.ClusteradmFlags.KubectlFactory.DynamicClient()
+		if err != nil {
+			return err
+		}
+		if err := trustbundle.NewPublisher(dynamicClient, kubeClient.Discovery()).Publish(ctx, o.spiffe.caBundle); err != nil {
+			return fmt.Errorf("failed to store the hub trust bundle: %w", err)
 		}
 	}
 	if err := apply(); err != nil {
