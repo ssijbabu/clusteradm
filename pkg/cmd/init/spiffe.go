@@ -2,14 +2,20 @@
 package init
 
 import (
+	"context"
 	"fmt"
+	"net"
 	"os"
+	"time"
 
 	"github.com/spf13/pflag"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
+	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/client-go/kubernetes"
 
 	operatorv1 "open-cluster-management.io/api/operator/v1"
+	"open-cluster-management.io/clusteradm/pkg/config"
 	"open-cluster-management.io/clusteradm/pkg/helpers"
 )
 
@@ -142,16 +148,67 @@ func (s *spiffeOptions) hubConfig() *operatorv1.SPIFFEHubConfig {
 	return cfg
 }
 
-// spiffeJoinCommand is printed instead of a token-based join command. It
-// carries only public data; the hub CA fingerprint must travel separately.
-func (o *Options) spiffeJoinCommand() string {
-	return fmt.Sprintf("%s join --registration-auth grpc --spiffe-grpc-server %s --spiffe-trust-domain %s "+
-		"--spiffe-token-audience %s --spiffe-ca-bundle hub-ca.pem --spiffe-ca-fingerprint <hub CA fingerprint>",
-		helpers.GetExampleHeader(), o.grpcServer, o.spiffe.trustDomain, o.spiffe.audience())
+// grpcServerPlaceholder stands in for the hub gRPC address when it is not
+// known yet.
+const grpcServerPlaceholder = "<hub gRPC host:port>"
+
+// spiffeGRPCServer returns the address spoke agents dial: --grpc-server if
+// given, otherwise, for a LoadBalancer endpoint, the external address the
+// cloud provider assigns to the gRPC server Service, which may take a while.
+// Port 443, the Service port, is added if none is given. It returns the
+// placeholder if the address cannot be found.
+func (o *Options) spiffeGRPCServer(ctx context.Context, kubeClient kubernetes.Interface) string {
+	host := o.grpcServer
+	if host == "" && o.grpcEndpointType == string(operatorv1.EndpointTypeLoadBalancer) && !o.ClusteradmFlags.DryRun {
+		host = waitForLoadBalancerAddress(ctx, kubeClient, time.Duration(o.ClusteradmFlags.Timeout)*time.Second)
+	}
+	if host == "" {
+		return grpcServerPlaceholder
+	}
+	if o.grpcEndpointType == string(operatorv1.EndpointTypeLoadBalancer) {
+		if _, _, err := net.SplitHostPort(host); err != nil {
+			host = net.JoinHostPort(host, "443")
+		}
+	}
+	return host
 }
 
-func (o *Options) printSPIFFEJoinCommand() error {
-	cmd := o.spiffeJoinCommand()
+// waitForLoadBalancerAddress returns the gRPC server Service's external IP or
+// host name, or "" if none is assigned within timeout.
+func waitForLoadBalancerAddress(ctx context.Context, kubeClient kubernetes.Interface, timeout time.Duration) string {
+	var address string
+	_ = wait.PollUntilContextTimeout(ctx, 5*time.Second, timeout, true, func(ctx context.Context) (bool, error) {
+		svc, err := kubeClient.CoreV1().Services(config.HubClusterNamespace).
+			Get(ctx, config.ClusterManagerName+"-grpc-server", metav1.GetOptions{})
+		if err != nil {
+			return false, nil
+		}
+		for _, ingress := range svc.Status.LoadBalancer.Ingress {
+			if ingress.IP != "" {
+				address = ingress.IP
+				return true, nil
+			}
+			if ingress.Hostname != "" {
+				address = ingress.Hostname
+				return true, nil
+			}
+		}
+		return false, nil
+	})
+	return address
+}
+
+// spiffeJoinCommand is printed instead of a token-based join command. It
+// carries only public data; the hub CA fingerprint must travel separately.
+func (o *Options) spiffeJoinCommand(grpcServer string) string {
+	return fmt.Sprintf("%s join --registration-auth grpc --spiffe-grpc-server %s --spiffe-trust-domain %s "+
+		"--spiffe-token-audience %s --spiffe-ca-bundle hub-ca.pem --spiffe-ca-fingerprint <hub CA fingerprint>",
+		helpers.GetExampleHeader(), grpcServer, o.spiffe.trustDomain, o.spiffe.audience())
+}
+
+func (o *Options) printSPIFFEJoinCommand(ctx context.Context, kubeClient kubernetes.Interface) error {
+	grpcServer := o.spiffeGRPCServer(ctx, kubeClient)
+	cmd := o.spiffeJoinCommand(grpcServer)
 	if len(o.outputJoinCommandFile) > 0 {
 		if err := os.WriteFile(o.outputJoinCommandFile, []byte(cmd+" --cluster-name $1"), 0o755); err != nil {
 			return err
@@ -166,5 +223,11 @@ func (o *Options) printSPIFFEJoinCommand() error {
 		"  3. Accept the cluster with the identity file the join produces:\n\n"+
 		"       %s accept --clusters <cluster_name> --identity-file <cluster_name>-identity.yaml --identity-thumbprints <thumbprints>\n\n",
 		cmd, helpers.GetExampleHeader())
+	if grpcServer == grpcServerPlaceholder {
+		fmt.Fprintf(o.Streams.Out, "The hub gRPC address is not known yet. Use --grpc-server, or once the load balancer "+
+			"has an address, its external IP or host name with port 443:\n\n"+
+			"       kubectl -n %s get service %s-grpc-server -o jsonpath='{.status.loadBalancer.ingress[0]}'\n\n",
+			config.HubClusterNamespace, config.ClusterManagerName)
+	}
 	return nil
 }

@@ -330,7 +330,7 @@ func (o *Options) run(ctx context.Context) error {
 					return err
 				}
 			}
-			return o.printSPIFFEJoinCommand()
+			return o.printSPIFFEJoinCommand(ctx, kubeClient)
 		}
 
 		// if service-account wait for the sa secret
