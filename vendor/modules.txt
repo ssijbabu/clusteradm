@@ -1473,7 +1473,7 @@ open-cluster-management.io/managed-serviceaccount/pkg/generated/clientset/versio
 open-cluster-management.io/managed-serviceaccount/pkg/generated/clientset/versioned/scheme
 open-cluster-management.io/managed-serviceaccount/pkg/generated/clientset/versioned/typed/authentication/v1alpha1
 open-cluster-management.io/managed-serviceaccount/pkg/generated/clientset/versioned/typed/authentication/v1beta1
-# open-cluster-management.io/ocm v1.4.0 => github.com/ssijbabu/ocm v1.3.1-0.20261030095625-1b75b7b906c3
+# open-cluster-management.io/ocm v1.4.0 => github.com/ssijbabu/ocm v1.3.1-0.20261030112920-29c2ef4d83e9
 ## explicit; go 1.26.0
 open-cluster-management.io/ocm/deploy/cluster-manager/chart
 open-cluster-management.io/ocm/deploy/klusterlet/chart
@@ -1661,4 +1661,4 @@ sigs.k8s.io/yaml/goyaml.v3
 sigs.k8s.io/yaml/kyaml
 # open-cluster-management.io/api => github.com/ssijbabu/api v1.3.1-0.20261030064644-a2334d45be93
 # open-cluster-management.io/sdk-go => github.com/ssijbabu/sdk-go v1.4.1-0.20261030064657-87a7e41cfced
-# open-cluster-management.io/ocm => github.com/ssijbabu/ocm v1.3.1-0.20261030095625-1b75b7b906c3
+# open-cluster-management.io/ocm => github.com/ssijbabu/ocm v1.3.1-0.20261030112920-29c2ef4d83e9

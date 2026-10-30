@@ -171,4 +171,4 @@ replace open-cluster-management.io/api => github.com/ssijbabu/api v1.3.1-0.20261
 
 replace open-cluster-management.io/sdk-go => github.com/ssijbabu/sdk-go v1.4.1-0.20261030064657-87a7e41cfced
 
-replace open-cluster-management.io/ocm => github.com/ssijbabu/ocm v1.3.1-0.20261030095625-1b75b7b906c3
+replace open-cluster-management.io/ocm => github.com/ssijbabu/ocm v1.3.1-0.20261030112920-29c2ef4d83e9
