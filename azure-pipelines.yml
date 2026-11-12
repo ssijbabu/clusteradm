@@ -1,0 +1,55 @@
+# Azure DevOps CI for clusteradm.
+# Mirrors the verify, unit and integration jobs in .github/workflows/tests.yaml, plus a build
+# that publishes the clusteradm binary as a pipeline artifact.
+
+trigger:
+  branches:
+    include:
+    - main
+    - release-*
+    - azure-*
+
+pr:
+  branches:
+    include:
+    - main
+    - release-*
+
+stages:
+- stage: ci
+  displayName: CI
+  jobs:
+  - template: .azure-pipelines/templates/make-jobs.yml
+    parameters:
+      # Unit tests expect the repo inside a GOPATH layout, as in the GitHub workflow.
+      checkoutPath: go/src/github.com/open-cluster-management/clusteradm
+      goPath: $(Agent.BuildDirectory)/go
+      checks:
+      - name: verify
+        displayName: verify
+        commands: [make verify]
+      - name: unit
+        displayName: unit
+        commands: [make test]
+      - name: integration
+        displayName: integration
+        commands: [make test-integration]
+
+  - job: build
+    displayName: build
+    pool:
+      vmImage: ubuntu-latest
+    steps:
+    - checkout: self
+      fetchDepth: 1
+    - template: .azure-pipelines/templates/setup-go.yml
+      parameters:
+        workingDirectory: $(Build.SourcesDirectory)
+    - bash: |
+        set -euo pipefail
+        mkdir -p "$(Build.ArtifactStagingDirectory)/bin"
+        GOOS=linux GOARCH=amd64 go build -o "$(Build.ArtifactStagingDirectory)/bin/clusteradm" ./cmd/clusteradm/clusteradm.go
+      displayName: go build clusteradm
+    - publish: $(Build.ArtifactStagingDirectory)/bin
+      artifact: clusteradm-linux-amd64
+      displayName: Publish clusteradm binary
